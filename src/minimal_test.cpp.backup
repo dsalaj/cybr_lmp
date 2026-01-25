@@ -1,0 +1,56 @@
+#include <Arduino.h>
+#include <U8g2lib.h>
+#include <Wire.h>
+
+// Minimal OLED test - static display only
+U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R1, /* reset=*/U8X8_PIN_NONE);
+
+unsigned long startTime = 0;
+int counter = 0;
+
+void setup() {
+  Serial.begin(115200);
+  delay(100);
+  Serial.println("\n🔬 MINIMAL OLED TEST");
+  Serial.println("Testing if display stays on with minimal code...\n");
+  
+  // Initialize display
+  u8g2.begin();
+  u8g2.setPowerSave(0);
+  u8g2.setContrast(255);
+  
+  // Draw static content ONCE
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_6x10_tr);
+  u8g2.drawStr(0, 10, "STATIC TEST");
+  u8g2.drawStr(0, 22, "Should stay on");
+  u8g2.sendBuffer();
+  
+  startTime = millis();
+  Serial.println("✅ Display initialized");
+  Serial.println("If display shuts off, OLED module is defective!\n");
+}
+
+void loop() {
+  unsigned long elapsed = millis() - startTime;
+  counter++;
+  
+  // Only log every 10 seconds - no display updates
+  if (counter % 50 == 0) {
+    Serial.print("⏱️  Uptime: ");
+    Serial.print(elapsed / 1000);
+    Serial.println("s - Display should still be on!");
+    
+    // Re-draw the same static content (minimal test)
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_6x10_tr);
+    u8g2.drawStr(0, 10, "STATIC TEST");
+    
+    char buf[20];
+    sprintf(buf, "%lus", elapsed / 1000);
+    u8g2.drawStr(0, 22, buf);
+    u8g2.sendBuffer();
+  }
+  
+  delay(200);
+}
