@@ -67,14 +67,6 @@ bool noiseBurstActive = false;
 unsigned long lastNoiseBurst = 0;
 unsigned long noiseBurstDuration = 150;
 
-// Pre-calculated noise positions (to avoid random() calls in page loop)
-struct NoisePixel {
-  int x;
-  int y;
-  bool cluster1;
-  bool cluster2;
-};
-NoisePixel noisePixels[140];
 int noisePixelCount = 140;
 
 // --- Cyberpunk Helper Functions ---
@@ -217,21 +209,24 @@ void updateGlitch() {
   }
 }
 
-// Draw noise burst effect (only when active) - uses pre-calculated positions
+// Draw noise burst effect (dynamic white noise)
 void drawNoiseBurst() {
   if (!noiseBurstActive) {
     return; // Don't draw anything if burst is not active
   }
 
-  // Draw noise pixels using pre-calculated positions (NO random() calls here!)
+  // Generate random noise each frame (TV static effect)
   for (int i = 0; i < noisePixelCount; i++) {
-    u8g2.drawPixel(noisePixels[i].x, noisePixels[i].y);
+    int x = random(0, 32);
+    int y = random(0, 128);
+    u8g2.drawPixel(x, y);
 
-    if (noisePixels[i].cluster1) {
-      u8g2.drawPixel(noisePixels[i].x + 1, noisePixels[i].y);
+    // Occasional clusters for visual variety
+    if (random(100) < 50) {
+      u8g2.drawPixel(x + 1, y);
     }
-    if (noisePixels[i].cluster2) {
-      u8g2.drawPixel(noisePixels[i].x, noisePixels[i].y + 1);
+    if (random(100) < 30) {
+      u8g2.drawPixel(x, y + 1);
     }
   }
 }
@@ -271,16 +266,29 @@ void drawScanline() {
 // Draw cyberpunk status indicator
 void drawStatusIndicator(int y, bool active) {
   if (active) {
-    // Draw pulsing bracket style indicator
-    int pulse = (frameCounter / 10) % 6;
+    // Cyber-Heartbeat Animation (20 frames cycle ~ 600ms)
+    int pulse = frameCounter % 20;
+    int cx = 16;    // Center X
+    int cy = y - 3; // Center Y (approx)
+
     u8g2.drawStr(2, y, "[");
     u8g2.drawStr(26, y, "]");
 
-    // Animated center dot
     if (pulse < 3) {
-      u8g2.drawBox(14, y - 5, 4, 4);
+      // Beat 1: Large + Crosshairs
+      u8g2.drawBox(cx - 3, cy - 3, 7, 7);
+      u8g2.drawLine(cx - 5, cy, cx + 5, cy);
+      u8g2.drawLine(cx, cy - 5, cx, cy + 5);
+    } else if (pulse < 6) {
+      // Recoil: Small
+      u8g2.drawBox(cx - 1, cy - 1, 3, 3);
+    } else if (pulse < 11) {
+      // Beat 2: Medium + Ring
+      u8g2.drawBox(cx - 2, cy - 2, 5, 5);
+      u8g2.drawFrame(cx - 5, cy - 5, 11, 11);
     } else {
-      u8g2.drawBox(13, y - 6, 6, 6);
+      // Rest: Small
+      u8g2.drawBox(cx - 1, cy - 1, 3, 3);
     }
   } else {
     // Draw dim brackets
@@ -291,17 +299,35 @@ void drawStatusIndicator(int y, bool active) {
 }
 
 // Draw vertical power bar with cyberpunk styling
-void drawPowerBar(int percentage) {
+// Draw vertical power bar with cyberpunk styling
+void drawPowerBar(int percentage, bool active) {
   int barHeight = map(percentage, 0, 100, 0, 40);
 
   // Draw outer frame
   u8g2.drawFrame(2, 70, 8, 42);
   u8g2.drawFrame(22, 70, 8, 42);
 
-  // Draw filled bars
-  if (barHeight > 0) {
-    u8g2.drawBox(3, 111 - barHeight, 6, barHeight);
-    u8g2.drawBox(23, 111 - barHeight, 6, barHeight);
+  if (active) {
+    // Draw filled bars
+    if (barHeight > 0) {
+      u8g2.drawBox(3, 111 - barHeight, 6, barHeight);
+      u8g2.drawBox(23, 111 - barHeight, 6, barHeight);
+    }
+  } else {
+    // Draw disabled "hatch" pattern (diagonal lines) in each segment
+    for (int i = 0; i < 5; i++) {
+      int yBase = 70 + (i * 8) + 1; // Top of segment (inside frame)
+      // Left Box Hatching (x=3 to 8)
+      u8g2.drawLine(3, yBase + 6, 3 + 6, yBase);         // Main diagonal
+      u8g2.drawLine(3, yBase + 2, 3 + 2, yBase);         // Top-left corner
+      u8g2.drawLine(3 + 4, yBase + 6, 3 + 6, yBase + 4); // Bottom-right corner
+
+      // Right Box Hatching (x=23 to 28)
+      u8g2.drawLine(23, yBase + 6, 23 + 6, yBase); // Main diagonal
+      u8g2.drawLine(23, yBase + 2, 23 + 2, yBase); // Top-left corner
+      u8g2.drawLine(23 + 4, yBase + 6, 23 + 6,
+                    yBase + 4); // Bottom-right corner
+    }
   }
 
   // Draw segment lines for cyberpunk look
@@ -417,7 +443,8 @@ void drawScreen() {
     u8g2.drawStr(numX, 66, buf);
 
     // Draw power bars
-    drawPowerBar(percentage);
+    // Draw power bars
+    drawPowerBar(percentage, isLedOn);
 
     // --- BOTTOM SECTION ---
     // Draw animated scanline effect
@@ -459,6 +486,12 @@ void onToggleClick() {
 void onBrightClick() {
   Serial.println("Bright Button Clicked");
   wakeScreen(); // Wake screen on button press
+
+  if (!isLedOn) {
+    Serial.println("❌ Brightness change ignored (Power OFF)");
+    return;
+  }
+
   // Increment index, wrap around if needed
   currentLevelIndex++;
   if (currentLevelIndex >= NUM_LEVELS) {
@@ -507,14 +540,6 @@ void setup() {
   // Screen starts in OFF state, will wake on button press
   screenState = SCREEN_OFF;
   Serial.println("✅ Setup complete! Screen will wake on button press.\n");
-
-  // Pre-calculate all random noise positions NOW (outside of draw loop)
-  for (int i = 0; i < noisePixelCount; i++) {
-    noisePixels[i].x = random(0, 32);
-    noisePixels[i].y = random(0, 128);
-    noisePixels[i].cluster1 = random(100) < 50;
-    noisePixels[i].cluster2 = random(100) < 30;
-  }
 }
 
 void loop() {
@@ -528,11 +553,11 @@ void loop() {
   btnBright.tick();
 
   // Only animate screen when it's not completely off
-  // Animate at ~10fps for normal screen, 30fps for animations
-  int frameRate =
-      (screenState == SCREEN_POWERING_UP || screenState == SCREEN_POWERING_DOWN)
-          ? 33
-          : 100;
+  // Animate at ~10fps for normal screen, 30fps for animations & noise
+  int frameRate = (screenState == SCREEN_POWERING_UP ||
+                   screenState == SCREEN_POWERING_DOWN || noiseBurstActive)
+                      ? 33
+                      : 100;
 
   if (screenState != SCREEN_OFF && now - lastFrameTime > frameRate) {
     lastFrameTime = now;
