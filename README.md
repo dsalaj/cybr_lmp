@@ -12,8 +12,13 @@
 ` > DECRYPTING DATA STREAM...`
 ` > ACCESS GRANTED.`
 
-![Prototype v0.2 Animation](img/prototype_v0.2.gif)
-![Prototype v0.2 Preview](img/prototype_v0.2.jpg)
+<!-- Embedded animation with poster and clickable fallback -->
+<video controls loop muted playsinline poster="img/prototype_v0.2.jpg" width="640">
+  <source src="img/cybr_lmp_2.mp4" type="video/mp4">
+  Your browser does not support the video tag. You can view the video here: [Prototype v0.2 Animation](img/cybr_lmp_2.mp4)
+</video>
+
+[![Prototype v0.2 Preview](img/prototype_v0.2.jpg)](img/cybr_lmp_2.mp4)
 
 ## [ SYSTEM_MANIFEST ]
 
