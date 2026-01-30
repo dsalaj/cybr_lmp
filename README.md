@@ -12,6 +12,9 @@
 ` > DECRYPTING DATA STREAM...`
 ` > ACCESS GRANTED.`
 
+![Prototype v0.2 Animation](img/prototype_v0.2.gif)
+![Prototype v0.2 Preview](img/prototype_v0.2.jpg)
+
 ## [ SYSTEM_MANIFEST ]
 
 The **CYBR.LMP** is a high-fidelity illumination construct designed for the discerning netrunner. Powered by an **RP2040** core, this unit drives a high-intensity fiber optic array while providing real-time system telemetry via a dedicated **OLED HUD**.
