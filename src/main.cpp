@@ -7,7 +7,11 @@
 // --- Pin Definitions ---
 const int PIN_BTN_TOGGLE = 27; // D1
 const int PIN_BTN_BRIGHT = 28; // D2
-const int PIN_LED_FIBER = 26;  // D0 (PWM capable)
+const int PIN_LED_FIBER = D0;  // D0 (Logic Pin 0) -> GPIO 26
+const int GPIO_LED_FIBER = 26; // Hardware GPIO 26 for SDK calls
+
+const int PIN_LED_FIBER2 = D6; // D6 (Logic Pin 6) -> GPIO 0
+const int GPIO_LED_FIBER2 = 0; // Hardware GPIO 0 for SDK calls
 
 // --- Constants ---
 // 5 levels of brightness: 20%, 40%, 60%, 80%, 100%
@@ -78,7 +82,7 @@ void wakeScreen() {
     animationStartTime = millis();
     u8g2.setPowerSave(0);
     u8g2.setContrast(255);
-    Serial.println("🔆 Screen powering up...");
+    // Serial.println("🔆 Screen powering up...");
   }
   lastUserActivity = millis();
 }
@@ -91,7 +95,7 @@ void updateScreenState() {
   case SCREEN_POWERING_UP:
     if (now - animationStartTime >= POWERUP_DURATION) {
       screenState = SCREEN_ON;
-      Serial.println("✅ Screen fully on");
+      // Serial.println("✅ Screen fully on");
     }
     break;
 
@@ -99,7 +103,7 @@ void updateScreenState() {
     if (now - lastUserActivity >= SCREEN_TIMEOUT) {
       screenState = SCREEN_POWERING_DOWN;
       animationStartTime = now;
-      Serial.println("🌙 Screen powering down...");
+      // Serial.println("🌙 Screen powering down...");
     }
     break;
 
@@ -341,14 +345,17 @@ void drawPowerBar(int percentage, bool active) {
 // Update LED brightness
 void updateLED() {
   if (isLedOn) {
-    // If max brightness, use digital write for pure VCC connection
+    // If max brightness, use digital write for pure VCC connection on both LEDs
     if (currentLevelIndex == NUM_LEVELS - 1) {
       digitalWrite(PIN_LED_FIBER, HIGH);
+      digitalWrite(PIN_LED_FIBER2, HIGH);
     } else {
       analogWrite(PIN_LED_FIBER, BRIGHTNESS_LEVELS[currentLevelIndex]);
+      analogWrite(PIN_LED_FIBER2, BRIGHTNESS_LEVELS[currentLevelIndex]);
     }
   } else {
     digitalWrite(PIN_LED_FIBER, LOW);
+    digitalWrite(PIN_LED_FIBER2, LOW);
   }
 }
 
@@ -472,7 +479,7 @@ void drawScreen() {
 // --- Button Callbacks ---
 
 void onToggleClick() {
-  Serial.println("Toggle Button Clicked");
+  // Serial.println("Toggle Button Clicked");
   wakeScreen(); // Wake screen on button press
   isLedOn = !isLedOn;
   updateLED();
@@ -484,11 +491,11 @@ void onToggleClick() {
 }
 
 void onBrightClick() {
-  Serial.println("Bright Button Clicked");
+  // Serial.println("Bright Button Clicked");
   wakeScreen(); // Wake screen on button press
 
   if (!isLedOn) {
-    Serial.println("❌ Brightness change ignored (Power OFF)");
+    // Serial.println("❌ Brightness change ignored (Power OFF)");
     return;
   }
 
@@ -510,36 +517,39 @@ void onBrightClick() {
 
 void setup() {
   // Initialize Serial for diagnostics
-  Serial.begin(115200);
+  // Serial.begin(115200);
   delay(100);
-  Serial.println("\n\n🚀 CYBR.LMP Starting...");
+  // Serial.println("\n\n🚀 CYBR.LMP Starting...");
 
   // Initialize Pins
   pinMode(PIN_LED_FIBER, OUTPUT);
-  // Increase drive strength to maximum (12mA) to drive LED brighter
-  gpio_set_drive_strength(PIN_LED_FIBER, GPIO_DRIVE_STRENGTH_12MA);
-  gpio_set_slew_rate(PIN_LED_FIBER, GPIO_SLEW_RATE_FAST);
+  pinMode(PIN_LED_FIBER2, OUTPUT);
+  // Increase drive strength to maximum (12mA) to drive MOSFETs hard
+  gpio_set_drive_strength(GPIO_LED_FIBER, GPIO_DRIVE_STRENGTH_12MA);
+  gpio_set_drive_strength(GPIO_LED_FIBER2, GPIO_DRIVE_STRENGTH_12MA);
+  gpio_set_slew_rate(GPIO_LED_FIBER, GPIO_SLEW_RATE_FAST);
+  gpio_set_slew_rate(GPIO_LED_FIBER2, GPIO_SLEW_RATE_FAST);
 
   // Initialize Display
-  Serial.println("📺 Initializing OLED display...");
+  // Serial.println("📺 Initializing OLED display...");
   u8g2.begin();
   u8g2.setPowerSave(1); // Start with display OFF
-  Serial.println("✅ Display initialized (OFF)");
+  // Serial.println("✅ Display initialized (OFF)");
 
   // Attach Button Events
   btnToggle.attachClick(onToggleClick);
   btnBright.attachClick(onBrightClick);
 
   // Seed random for glitch effects
-  randomSeed(analogRead(A0));
+  randomSeed(micros());
 
   // Initial State
-  Serial.println("💡 Setting initial state...");
+  // Serial.println("💡 Setting initial state...");
   updateLED();
 
   // Screen starts in OFF state, will wake on button press
   screenState = SCREEN_OFF;
-  Serial.println("✅ Setup complete! Screen will wake on button press.\n");
+  // Serial.println("✅ Setup complete! Screen will wake on button press.\n");
 }
 
 void loop() {
@@ -566,6 +576,7 @@ void loop() {
     // Periodic heartbeat every 20 seconds (only when screen is on)
     if (frameCounter % 100 == 0 && screenState == SCREEN_ON) {
       unsigned long elapsed = millis();
+      /*
       Serial.print("💓 Heartbeat - Frame: ");
       Serial.print(frameCounter);
       Serial.print(" | LED: ");
@@ -575,6 +586,7 @@ void loop() {
       Serial.print("s | Last activity: ");
       Serial.print((now - lastUserActivity) / 1000);
       Serial.println("s ago");
+      */
     }
   }
 
