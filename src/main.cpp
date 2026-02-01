@@ -73,6 +73,23 @@ unsigned long noiseBurstDuration = 150;
 
 int noisePixelCount = 140;
 
+// Diagnostic Mode
+bool diagnosticMode = false;
+int diagnosticLEDPhase = 0;
+unsigned long lastDiagnosticUpdate = 0;
+int terminalScrollOffset = 0;
+const char *terminalLines[] = {
+    "SYS.INIT...",    "LOAD KERN 0x4F2A", "MEM CHECK OK",  "GPIO SCAN...",
+    "I2C BUS ACTIVE", "PWM CH0 READY",    "PWM CH1 READY", "OLED SYNC OK",
+    "BTN POLL START", "FIBER0 ONLINE",    "FIBER1 ONLINE", "RAND SEED SET",
+    "WATCHDOG ARM",   "CORE TEMP 42C",    "VBUS 5.02V",    "3V3 RAIL OK",
+    "FLASH CRC OK",   "DIAG MODE ACT"};
+const int numTerminalLines = 18;
+
+// Dual button press detection
+unsigned long bothButtonsPressedStart = 0;
+bool bothButtonsHandled = false;
+
 // --- Cyberpunk Helper Functions ---
 
 // Wake screen on button press
@@ -367,6 +384,99 @@ void updateLED() {
   }
 }
 
+// Update LED brightness in diagnostic mode (breathing effect)
+void updateDiagnosticLEDs() {
+  unsigned long now = millis();
+
+  // Update at 60fps for smooth animation
+  if (now - lastDiagnosticUpdate > 16) {
+    lastDiagnosticUpdate = now;
+    diagnosticLEDPhase = (diagnosticLEDPhase + 2) % 512;
+  }
+
+  // Create breathing effect using sine-like triangle wave
+  int brightness;
+  if (diagnosticLEDPhase < 256) {
+    brightness = diagnosticLEDPhase;
+  } else {
+    brightness = 511 - diagnosticLEDPhase;
+  }
+
+  // Ensure pins are outputs
+  pinMode(PIN_LED_FIBER, OUTPUT);
+  pinMode(PIN_LED_FIBER2, OUTPUT);
+  gpio_set_drive_strength(GPIO_LED_FIBER, GPIO_DRIVE_STRENGTH_12MA);
+  gpio_set_drive_strength(GPIO_LED_FIBER2, GPIO_DRIVE_STRENGTH_12MA);
+
+  // Apply breathing to both LEDs
+  analogWrite(PIN_LED_FIBER, brightness);
+  analogWrite(PIN_LED_FIBER2, brightness);
+}
+
+// Draw glitchy diagnostic terminal screen
+void drawDiagnosticScreen() {
+  u8g2.clearBuffer();
+
+  // Update scroll position
+  terminalScrollOffset = (terminalScrollOffset + 1) % (numTerminalLines * 8);
+
+  // Draw header with glitch
+  u8g2.setFont(u8g2_font_4x6_tr);
+  int glitchX = random(0, 3) - 1;
+  u8g2.drawStr(1 + glitchX, 8, "DIAG.MODE");
+  u8g2.drawHLine(0, 10, 32);
+
+  // Random glitch line
+  if (random(100) < 20) {
+    u8g2.drawHLine(0, 11, random(10, 32));
+  }
+
+  // Draw scrolling terminal lines
+  u8g2.setFont(u8g2_font_4x6_tr);
+  int startLine = terminalScrollOffset / 8;
+  int yOffset = -(terminalScrollOffset % 8);
+
+  for (int i = 0; i < 16; i++) {
+    int lineIndex = (startLine + i) % numTerminalLines;
+    int y = 20 + yOffset + (i * 8);
+
+    if (y > 12 && y < 128) {
+      // Random glitch effect on some lines
+      int xGlitch = 0;
+      if (random(100) < 10) {
+        xGlitch = random(-2, 3);
+      }
+
+      u8g2.drawStr(2 + xGlitch, y, terminalLines[lineIndex]);
+
+      // Random corruption pixels
+      if (random(100) < 5) {
+        for (int j = 0; j < 3; j++) {
+          u8g2.drawPixel(random(0, 32), y - 3 + random(0, 6));
+        }
+      }
+    }
+  }
+
+  // Blinking cursor
+  if ((frameCounter / 10) % 2 == 0) {
+    u8g2.drawBox(2, 120, 4, 6);
+  }
+
+  // Scanline effect
+  int scanY = (frameCounter * 4) % 128;
+  u8g2.drawHLine(0, scanY, 32);
+
+  // Random noise bursts
+  if (random(100) < 15) {
+    for (int i = 0; i < 20; i++) {
+      u8g2.drawPixel(random(0, 32), random(0, 128));
+    }
+  }
+
+  u8g2.sendBuffer();
+}
+
 void drawScreen() {
   // Don't draw if screen is completely off
   if (screenState == SCREEN_OFF) {
@@ -486,7 +596,30 @@ void drawScreen() {
 
 // --- Button Callbacks ---
 
+// Dual button press to toggle diagnostic mode
+void onDualButtonPress() {
+  diagnosticMode = !diagnosticMode;
+
+  if (diagnosticMode) {
+    // Entering diagnostic mode
+    wakeScreen();
+    screenState = SCREEN_ON;
+    lastUserActivity = millis() + 999999; // Keep screen on indefinitely
+    terminalScrollOffset = 0;
+    diagnosticLEDPhase = 0;
+  } else {
+    // Exiting diagnostic mode
+    lastUserActivity = millis();
+    // Return to normal LED state
+    updateLED();
+  }
+}
+
 void onToggleClick() {
+  // Ignore single clicks in diagnostic mode
+  if (diagnosticMode)
+    return;
+
   wakeScreen(); // Wake screen on button press
   isLedOn = !isLedOn;
   updateLED();
@@ -498,6 +631,10 @@ void onToggleClick() {
 }
 
 void onBrightClick() {
+  // Ignore single clicks in diagnostic mode
+  if (diagnosticMode)
+    return;
+
   wakeScreen(); // Wake screen on button press
 
   if (!isLedOn) {
@@ -551,27 +688,62 @@ void setup() {
 void loop() {
   unsigned long now = millis();
 
-  // Update screen state (handle power up/down and timeouts)
-  updateScreenState();
-
   // Keep watching the push buttons
   btnToggle.tick();
   btnBright.tick();
 
-  // Only animate screen when it's not completely off
-  // Animate at ~10fps for normal screen, 30fps for animations & noise
-  int frameRate = (screenState == SCREEN_POWERING_UP ||
-                   screenState == SCREEN_POWERING_DOWN || noiseBurstActive)
-                      ? 33
-                      : 100;
+  // Check for simultaneous button press (both buttons held down)
+  bool bothPressed = (digitalRead(PIN_BTN_TOGGLE) == LOW &&
+                      digitalRead(PIN_BTN_BRIGHT) == LOW);
 
-  if (screenState != SCREEN_OFF && now - lastFrameTime > frameRate) {
-    lastFrameTime = now;
-    drawScreen();
+  if (bothPressed) {
+    if (bothButtonsPressedStart == 0) {
+      bothButtonsPressedStart = now;
+      bothButtonsHandled = false;
+    }
 
-    // Periodic heartbeat every 20 seconds (only when screen is on)
-    if (frameCounter % 100 == 0 && screenState == SCREEN_ON) {
-      unsigned long elapsed = millis();
+    // If both held for 300ms, toggle diagnostic mode
+    if (!bothButtonsHandled && (now - bothButtonsPressedStart > 300)) {
+      onDualButtonPress();
+      bothButtonsHandled = true;
+    }
+  } else {
+    // Reset when buttons released
+    bothButtonsPressedStart = 0;
+    bothButtonsHandled = false;
+  }
+
+  // Handle diagnostic mode
+  if (diagnosticMode) {
+    // Update LEDs with breathing animation
+    updateDiagnosticLEDs();
+
+    // Draw diagnostic screen at 30fps
+    if (now - lastFrameTime > 33) {
+      lastFrameTime = now;
+      drawDiagnosticScreen();
+      frameCounter++;
+    }
+  } else {
+    // Normal mode operation
+    // Update screen state (handle power up/down and timeouts)
+    updateScreenState();
+
+    // Only animate screen when it's not completely off
+    // Animate at ~10fps for normal screen, 30fps for animations & noise
+    int frameRate = (screenState == SCREEN_POWERING_UP ||
+                     screenState == SCREEN_POWERING_DOWN || noiseBurstActive)
+                        ? 33
+                        : 100;
+
+    if (screenState != SCREEN_OFF && now - lastFrameTime > frameRate) {
+      lastFrameTime = now;
+      drawScreen();
+
+      // Periodic heartbeat every 20 seconds (only when screen is on)
+      if (frameCounter % 100 == 0 && screenState == SCREEN_ON) {
+        unsigned long elapsed = millis();
+      }
     }
   }
 
