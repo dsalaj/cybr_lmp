@@ -5,11 +5,11 @@
 #include <hardware/gpio.h> // for gpio_set_drive_strength
 
 // --- Pin Definitions ---
-const int PIN_BTN_TOGGLE = 27; // D1
-const int PIN_BTN_BRIGHT = 28; // D2
-const int PIN_LED_FIBER = D0;  // D0 (Logic Pin 0) -> GPIO 26
-const int GPIO_LED_FIBER = 26; // Hardware GPIO 26 for SDK calls
+const int PIN_BTN_TOGGLE = 26;
+const int PIN_BTN_BRIGHT = 27;
 
+const int PIN_LED_FIBER = D2;  // D0 (Logic Pin 0) -> GPIO 26
+const int GPIO_LED_FIBER = 28; // Hardware GPIO 26 for SDK calls
 const int PIN_LED_FIBER2 = D3;  // D6 (Logic Pin 6) -> GPIO 0
 const int GPIO_LED_FIBER2 = 29; // Hardware GPIO 0 for SDK calls
 
