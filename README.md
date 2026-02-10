@@ -32,8 +32,9 @@ This system requires the following physical components for optimal operation:
 
 *   **Core Central Processing**: RP2040 (Raspberry Pi Pico compatible)
 *   **Visual Interface**: SSD1306 OLED Display (128x32 pixels, mounted vertically)
-*   **Photon Emitter**: High-current LED Driver (PWM Controlled)
-*   **Input Matrices**: 2x Tactile Switches (Active Low)
+*   **Photon Emitter**: COB LED fiber - USB powered 3mm wide - search on Aliexpress or similar
+*   **Photon Driver**: 2N7000 MOSFET - gated by a PWM analog pin on RP2040, source to (-) of LED and sink to GND of RP2040
+*   **Input Matrices**: 2x MX Switches
 
 ### // PIN_MAP
 | COMPONENT | TYPE | GPIO | NOTES |
@@ -53,17 +54,15 @@ This system requires the following physical components for optimal operation:
 
 The `3d_models/` directory contains printable enclosure components for physical assembly. All models are provided in `.obj` format for maximum compatibility with slicing software.
 
-### // COMPONENT_MANIFEST
+### // COMPONENT_MANIFEST & FABRICATION_NOTES
 
-*   **`cybr_lmp_1_v9.2_frame.obj`** - Main structural frame housing the electronics and display
-*   **`cybr_lmp_1_v9.2_front_edge.obj`** - Front bezel with integrated mounting points
-*   **`cybr_lmp_1_v9_backedge.obj`** - Rear panel for cable management and access
-*   **`cybr_lmp_1_v9.2_LEDbar.obj`** - Fiber optic LED mounting bracket
-*   **`cybr_lmp_1_v9.2_connector_cap.obj`** - Protective cap for connector access port
-*   **`cybr_lmp_1_v9.2_control_cap.obj`** - Button housing and control interface cap
-*   **`cybr_lmp_1_v9.2_end_cap.obj`** - Terminal end cap for structural closure
-
-### // FABRICATION_NOTES
+*   **`cybr_lmp_1_v9.2_frame.obj`** - Main structural frame for mounting the metal sheets from VÅRSYREN and polycarbonate windows
+*   **`cybr_lmp_1_v9.2_front_edge.obj`** - Front edges, best printed in transparent filament
+*   **`cybr_lmp_1_v9_backedge.obj`** - Obsolete back edge, deprecated by `cybr_lmp_1_v9.2_frame.obj`
+*   **`cybr_lmp_1_v9.2_LEDbar.obj`** - Light diffusion bar for cob led fiber
+*   **`cybr_lmp_1_v9.2_control_cap.obj`** - Buttons and OLED display housing, and a mounting point for XIAO RP2040
+*   **`cybr_lmp_1_v9.2_end_cap.obj`** - End cap
+*   **`cybr_lmp_1_v9.2_connector_cap.obj`** - End cap with a hole for passing through wires when making an extended model
 
 **Tested Materials**: PLA and PETG both produce excellent results. PETG recommended for enhanced durability and heat resistance.
 
