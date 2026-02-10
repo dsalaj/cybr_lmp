@@ -49,6 +49,26 @@ This system requires the following physical components for optimal operation:
 3.  **Dependency Injection**: Ensure `U8g2` and `OneButton` libraries are installed.
 4.  **Flash Firmware**: Upload via USB. Note: `randomSeed` initialized via entropy on `A0`.
 
+## [ ENCLOSURE_FABRICATION ]
+
+The `3d_models/` directory contains printable enclosure components for physical assembly. All models are provided in `.obj` format for maximum compatibility with slicing software.
+
+### // COMPONENT_MANIFEST
+
+*   **`cybr_lmp_1_v9.2_frame.obj`** - Main structural frame housing the electronics and display
+*   **`cybr_lmp_1_v9.2_front_edge.obj`** - Front bezel with integrated mounting points
+*   **`cybr_lmp_1_v9_backedge.obj`** - Rear panel for cable management and access
+*   **`cybr_lmp_1_v9.2_LEDbar.obj`** - Fiber optic LED mounting bracket
+*   **`cybr_lmp_1_v9.2_connector_cap.obj`** - Protective cap for connector access port
+*   **`cybr_lmp_1_v9.2_control_cap.obj`** - Button housing and control interface cap
+*   **`cybr_lmp_1_v9.2_end_cap.obj`** - Terminal end cap for structural closure
+
+### // FABRICATION_NOTES
+
+**Tested Materials**: PLA and PETG both produce excellent results. PETG recommended for enhanced durability and heat resistance.
+
+**Source Files**: `.plasticity` files are included for design modification and iteration.
+
 ## [ OPERATION_DIRECTIVES ]
 
 ### // INPUT_1 [PWR.TOGGLE]
